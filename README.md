@@ -1,132 +1,107 @@
 <!-- support_badges_start -->
-[![PayPal](https://img.shields.io/badge/PayPal-Support%20Me-00457C?logo=paypal&logoColor=white)](https://www.paypal.com/paypalme/KevinHughesPhoto)
+![PayPal](https://img.shields.io/badge/PayPal-Support%20Me-00457C?logo=paypal&logoColor=white)
 <!-- support_badges_end -->
 
-
-# 🏟️ Home Assistant Sports Ticker
-
+🏟️ Home Assistant Sports Ticker
 > A Home Assistant integration that pulls live sports data (scores, status, schedules, standings, and more) and exposes it as sensors — perfect for building ESPN-style dashboard cards and tickers in Lovelace.
-
+---
+📣 What's new (v0.2.0)
+⚽ Soccer support added (MLS, Premier League, LaLiga, UEFA competitions — via ESPN soccer scoreboards)
+🧾 Standings-friendly attributes (cleaner fields and examples for building standings cards)
+📊 Stats card example (starter Lovelace snippet for team/game stats)
+🧰 Docs cleanup + improved troubleshooting tips
+✨ What this integration does
+Live scoreboard sensors per league (JSON “raw” + derived summary sensors)
+Game day helpers (what’s on tonight / next game)
+Team-focused views (favorite team filters, opponent, record, etc.)
+Works great with:
+`custom:button-card`
+`card-mod`
+Mushroom cards / sections dashboards
+---
+📌 Quick Links
+📂 Category	📝 Description	🔗 Link
+🏠 Home	This README	You are here
+⚙️ Installation	HACS / manual setup	Jump
+🧠 Sensors	What entities you get	Jump
+🧩 Examples	Copy/paste cards	Jump
+🛠️ Troubleshooting	Common issues	Jump
 ---
 
-## ✨ What this integration does
-
-- **Live scoreboard sensors** per league (JSON “raw” + derived summary sensors)
-- **Game day helpers** (what’s on tonight / next game)
-- **Team-focused views** (favorite team filters, opponent, record, etc.)
-- Works great with:
-  - `custom:button-card`
-  - `card-mod`
-  - Mushroom cards / sections dashboards
-
----
-
-## 📌 Quick Links
-
-| 📂 Category | 📝 Description | 🔗 Link |
-| :--- | :--- | :---: |
-| **🏠 Home** | This README | **You are here** |
-| **⚙️ Installation** | HACS / manual setup | [Jump](#-installation) |
-| **🧠 Sensors** | What entities you get | [Jump](#-entities--sensors) |
-| **🧩 Examples** | Copy/paste cards | [Jump](#-lovelace-examples) |
-| **🛠️ Troubleshooting** | Common issues | [Jump](#-troubleshooting) |
-
----
-
-
-## ✅ Supported leagues
-
-This integration is designed around **ESPN-style** endpoints and supports multiple leagues.
-
+✅ Supported leagues
+This integration is designed around ESPN-style endpoints and supports multiple leagues.
 Common setups include:
-- **MLB**
-- **NFL**
-- **NBA**
-- **NHL**
-- **PGA Tour**
-- **NASCAR**
-
-> If your fork/build supports additional leagues, add them here.
-
+🇺🇸 Major leagues
+MLB
+NFL
+NBA
+NHL
+⛳️ / 🏁 Other sports
+PGA Tour
+NASCAR
+⚽ Soccer (Football)
+Soccer uses ESPN's `soccer` endpoints. Common leagues/events include:
+MLS (`usa.1`)
+Premier League (`eng.1`)
+LaLiga (`esp.1`)
+UEFA Champions League (`uefa.champions`)
+UEFA Europa League (`uefa.europa`)
+> Want more? Most ESPN soccer competitions work if you know the league code.
 ---
-
-## 📦 Installation
-
-### Option A — HACS (recommended)
-
-1. Open **HACS** → **Integrations**
-2. Click **⋮** → **Custom repositories**
-3. Add your repo URL, category **Integration**
-4. Install **Sports Ticker**
-5. Restart Home Assistant
-
-### Option B — Manual
-
-1. Copy the `custom_components/sports_ticker/` folder into:
-   - `config/custom_components/sports_ticker/`
-2. Restart Home Assistant
-3. Add the integration via **Settings → Devices & services → Add integration**
-
+📦 Installation
+Option A — HACS (recommended)
+Open HACS → Integrations
+Click ⋮ → Custom repositories
+Add your repo URL, category Integration
+Install Sports Ticker
+Restart Home Assistant
+Option B — Manual
+Copy the `custom_components/sports_ticker/` folder into:
+`config/custom_components/sports_ticker/`
+Restart Home Assistant
+Add the integration via Settings → Devices & services → Add integration
 ---
-
-## ⚙️ Configuration
-
+⚙️ Configuration
 After installing:
-
-1. Go to **Settings → Devices & services**
-2. Click **Add Integration**
-3. Search for **Sports Ticker**
-4. Choose:
-   - leagues you want enabled
-   - poll interval
-   - ticker speed/theme (if provided by your version)
-
+Go to Settings → Devices & services
+Click Add Integration
+Search for Sports Ticker
+Choose:
+leagues you want enabled
+poll interval
+ticker speed/theme (if provided by your version)
 ---
-
-## 🧠 Entities / Sensors
-
+🧠 Entities / Sensors
 > Names vary slightly depending on your config flow options.
 > Below is the typical pattern used by this integration.
-
-### Scoreboard “raw” sensors (JSON)
-
+Scoreboard “raw” sensors (JSON)
 These are the “source of truth” sensors used by Lovelace templates:
-
-- `sensor.espn_mlb_scoreboard_raw`
-- `sensor.espn_nfl_scoreboard_raw`
-- `sensor.espn_nba_scoreboard_raw`
-- `sensor.espn_nhl_scoreboard_raw`
-- `sensor.espn_pga_scoreboard_raw`
-- `sensor.espn_nascar_scoreboard_raw`
-
+`sensor.espn_mlb_scoreboard_raw`
+`sensor.espn_nfl_scoreboard_raw`
+`sensor.espn_nba_scoreboard_raw`
+`sensor.espn_nhl_scoreboard_raw`
+`sensor.espn_pga_scoreboard_raw`
+`sensor.espn_nascar_scoreboard_raw`
 They contain JSON attributes like:
-- events list (games)
-- status (pre / in / final)
-- competitors/teams
-- scores
-- time/period/inning
-- broadcast / venue (when available)
-
-### Helper / derived sensors (optional)
-
+events list (games)
+status (pre / in / final)
+competitors/teams
+scores
+time/period/inning
+broadcast / venue (when available)
+Helper / derived sensors (optional)
 Depending on your version, you may also see things like:
-- `sensor.sports_ticker_<league>_whats_on_tonight`
-- `sensor.sports_ticker_<league>_next_game`
-- `sensor.sports_ticker_<league>_standings_*`
-- `sensor.sports_ticker_<league>_team_stats_*`
-
+`sensor.sports_ticker_<league>_whats_on_tonight`
+`sensor.sports_ticker_<league>_next_game`
+`sensor.sports_ticker_<league>_standings_*`
+`sensor.sports_ticker_<league>_team_stats_*`
 > If you don’t see these, you can still build everything from the `*_raw` sensors.
-
 ---
-
-## 🧩 Lovelace examples
-
-### 1) ESPN-style Ticker card (button-card)
+🧩 Lovelace examples
+1) ESPN-style Ticker card (button-card)
 ![mlbticker](https://github.com/user-attachments/assets/5f63fdf8-9eaf-4400-a3b2-fd7f04b7ea17)
 
-
 <details>
-  
 ```yaml
   
 type: custom:button-card
@@ -440,14 +415,10 @@ card_mod:
     }
 ```
 </details>
-
-### 2) Whats on tonight guide
+2) Whats on tonight guide
 <img width="592" height="561" alt="image" src="https://github.com/user-attachments/assets/70082f86-3dc1-4a42-a6d6-d01cb126863f" />
 
-
-
 <details>
-  
 ```yaml
   
 type: custom:button-card
@@ -717,37 +688,447 @@ card_mod:
 
 ```
 </details>
+3)MLB Gamecast Card
+<img width="475" height="1227" alt="image" src="https://github.com/user-attachments/assets/56be2ed7-7f1e-4f3d-8794-a5ef4189ab4e" />
 
-## 🛠️ Troubleshooting
+<details>
+```yaml
+  
+type: custom:button-card
+entity: sensor.espn_mlb_scoreboard_raw
+show_name: false
+show_icon: false
+show_state: false
+triggers_update:
+  - sensor.espn_mlb_scoreboard_raw
+variables:
+  src: sensor.espn_mlb_scoreboard_raw
+  favorite: ATL
+  max_games: 8
+styles:
+  card:
+    - padding: 0
+    - border-radius: 24px
+    - overflow: hidden
+    - background: linear-gradient(180deg, rgba(8,12,20,0.98), rgba(14,20,32,0.96))
+    - border: 1px solid rgba(255,255,255,0.08)
+    - box-shadow: 0 12px 30px rgba(0,0,0,0.35)
+  grid:
+    - grid-template-areas: "\"main\""
+    - grid-template-columns: 1fr
+    - grid-template-rows: 1fr
+  custom_fields:
+    main:
+      - width: 100%
+custom_fields:
+  main: |
+    [[[
+      const st = states[variables.src];
+      if (!st) return `<div style="padding:18px;color:#fff;">Entity not found: ${variables.src}</div>`;
 
-### “No games found” but you know games exist
-- Check the league is enabled in the integration options
-- Confirm the sensor has updated recently
-- Open the raw sensor in **Developer Tools → States** and verify `attributes.events` exists
+      const events = st.attributes?.events || [];
+      if (!events.length) {
+        return `
+          <div style="padding:18px 20px;color:#fff;">
+            <div style="font-size:13px;opacity:.7;letter-spacing:.12em;text-transform:uppercase;">MLB Scoreboard</div>
+            <div style="margin-top:8px;font-size:18px;font-weight:700;">No games found</div>
+          </div>
+        `;
+      }
 
-### `ButtonCardJSTemplateError: Identifier 'html' has already been declared`
+      const fav = (variables.favorite || '').toUpperCase();
+      const maxGames = Number(variables.max_games || 8);
+
+      const getComp = (ev) => ev?.competitions?.[0] || {};
+      const getStatus = (ev) => getComp(ev)?.status || ev?.status || {};
+      const getStatusType = (ev) => getStatus(ev)?.type || {};
+      const getDetail = (ev) => getStatusType(ev)?.shortDetail || getStatusType(ev)?.detail || 'Scheduled';
+      const getState = (ev) => getStatusType(ev)?.state || 'pre';
+
+      const teamBySide = (comp, side) =>
+        (comp?.competitors || []).find(t => t.homeAway === side) || null;
+
+      const statVal = (team, key) => {
+        const s = (team?.statistics || []).find(x => x.name === key || x.abbreviation === key);
+        return s?.displayValue ?? '0';
+      };
+
+      const bases = (sit) => {
+        if (!sit) return '';
+        const on1 = sit.onFirst;
+        const on2 = sit.onSecond;
+        const on3 = sit.onThird;
+
+        const baseStyle = (on) => `
+          width:11px;height:11px;transform:rotate(45deg);
+          border-radius:2px;
+          background:${on ? '#ffd54a' : 'rgba(255,255,255,0.14)'};
+          border:1px solid ${on ? 'rgba(255,213,74,.9)' : 'rgba(255,255,255,.15)'};
+          box-shadow:${on ? '0 0 8px rgba(255,213,74,.35)' : 'none'};
+        `;
+
+        return `
+          <div style="display:grid;grid-template-columns:12px 12px 12px;grid-template-rows:12px 12px 12px;gap:2px;justify-content:center;align-items:center;">
+            <div></div>
+            <div style="${baseStyle(on2)}"></div>
+            <div></div>
+            <div style="${baseStyle(on3)}"></div>
+            <div></div>
+            <div style="${baseStyle(on1)}"></div>
+            <div></div>
+            <div></div>
+            <div></div>
+          </div>
+        `;
+      };
+
+      const outsDots = (outs) => {
+        const n = Number(outs ?? 0);
+        return `
+          <div style="display:flex;gap:4px;align-items:center;">
+            ${[0,1,2].map(i => `
+              <span style="
+                width:7px;height:7px;border-radius:50%;
+                background:${i < n ? '#ff5d5d' : 'rgba(255,255,255,0.18)'};
+                box-shadow:${i < n ? '0 0 8px rgba(255,93,93,.35)' : 'none'};
+                display:inline-block;"></span>
+            `).join('')}
+          </div>
+        `;
+      };
+
+      const inningVals = (team) => {
+        const arr = new Array(9).fill('-');
+        (team?.linescores || []).forEach(ls => {
+          const idx = Number(ls.period) - 1;
+          if (idx >= 0 && idx < 9) arr[idx] = ls.displayValue ?? ls.value ?? '-';
+        });
+        return arr;
+      };
+
+      const sortGames = [...events].sort((a,b) => {
+        const aFav = JSON.stringify(a).includes(`"abbreviation":"${fav}"`) ? 1 : 0;
+        const bFav = JSON.stringify(b).includes(`"abbreviation":"${fav}"`) ? 1 : 0;
+        if (aFav !== bFav) return bFav - aFav;
+
+        const aState = getState(a);
+        const bState = getState(b);
+        const rank = { in: 0, pre: 1, post: 2 };
+        const ar = rank[aState] ?? 9;
+        const br = rank[bState] ?? 9;
+        if (ar !== br) return ar - br;
+
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+      }).slice(0, maxGames);
+
+      const rows = sortGames.map((ev) => {
+        const comp = getComp(ev);
+        const state = getState(ev);
+        const detail = getDetail(ev);
+        const sit = comp?.situation || {};
+        const away = teamBySide(comp, 'away');
+        const home = teamBySide(comp, 'home');
+
+        if (!away || !home) return '';
+
+        const awayAbbr = away.team?.abbreviation || 'AWY';
+        const homeAbbr = home.team?.abbreviation || 'HME';
+
+        const awayName = away.team?.shortDisplayName || away.team?.name || awayAbbr;
+        const homeName = home.team?.shortDisplayName || home.team?.name || homeAbbr;
+
+        const awayLogo = away.team?.logo || '';
+        const homeLogo = home.team?.logo || '';
+
+        const awayScore = away.score ?? '-';
+        const homeScore = home.score ?? '-';
+
+        const awayHits = statVal(away, 'hits');
+        const homeHits = statVal(home, 'hits');
+        const awayErr = statVal(away, 'errors');
+        const homeErr = statVal(home, 'errors');
+
+        const awayColor = away.team?.color ? `#${away.team.color}` : '#9fb3c8';
+        const homeColor = home.team?.color ? `#${home.team.color}` : '#9fb3c8';
+
+        const awayLeading = Number(awayScore) > Number(homeScore);
+        const homeLeading = Number(homeScore) > Number(awayScore);
+        const isFav = [awayAbbr, homeAbbr].includes(fav);
+
+        const awayInnings = inningVals(away);
+        const homeInnings = inningVals(home);
+
+        const live = state === 'in';
+        const scheduled = state === 'pre';
+
+        const badgeBg =
+          live ? 'linear-gradient(90deg,#00c853,#00e676)' :
+          scheduled ? 'linear-gradient(90deg,#31445f,#425a78)' :
+          'linear-gradient(90deg,#6b7280,#9ca3af)';
+
+        const badgeText = live ? detail : scheduled ? detail : 'Final';
+
+        const lsCell = (val, strong = false) => `
+          <div style="
+            text-align:center;
+            font-size:${strong ? '13px' : '11px'};
+            font-weight:${strong ? '800' : '600'};
+            color:${val === '-' ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.88)'};
+            line-height:1;
+          ">${val}</div>
+        `;
+
+        return `
+          <div style="
+            padding:14px 16px;
+            border-top:1px solid rgba(255,255,255,0.06);
+            background:${isFav ? 'linear-gradient(90deg, rgba(186,12,47,0.12), rgba(12,35,64,0.08))' : 'transparent'};
+          ">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+              <div style="
+                display:inline-flex;align-items:center;gap:8px;
+                font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+                color:#fff;padding:4px 10px;border-radius:999px;background:${badgeBg};
+                box-shadow:0 0 12px rgba(0,0,0,.18);
+              ">
+                ${live ? '<span style="width:7px;height:7px;border-radius:50%;background:#fff;display:inline-block;"></span>' : ''}
+                ${badgeText}
+              </div>
+
+              <div style="font-size:11px;color:rgba(255,255,255,0.65);text-transform:uppercase;letter-spacing:.08em;">
+                ${comp?.broadcast || ''}
+              </div>
+            </div>
+
+            <div style="margin-top:12px;display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;">
+              <div style="display:flex;flex-direction:column;gap:10px;">
+                <div style="display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;">
+                  <img src="${awayLogo}" style="width:24px;height:24px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.25));">
+                  <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+                    <span style="font-size:15px;font-weight:700;color:${awayLeading ? '#ffffff' : 'rgba(255,255,255,0.88)'};">${awayAbbr}</span>
+                    <span style="font-size:12px;color:rgba(255,255,255,0.58);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${awayName}</span>
+                  </div>
+                  <div style="
+                    font-size:30px;font-weight:800;line-height:1;
+                    color:${awayLeading ? awayColor : 'rgba(255,255,255,0.9)'};
+                    min-width:22px;text-align:right;
+                  ">${awayScore}</div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;">
+                  <img src="${homeLogo}" style="width:24px;height:24px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.25));">
+                  <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+                    <span style="font-size:15px;font-weight:700;color:${homeLeading ? '#ffffff' : 'rgba(255,255,255,0.88)'};">${homeAbbr}</span>
+                    <span style="font-size:12px;color:rgba(255,255,255,0.58);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${homeName}</span>
+                  </div>
+                  <div style="
+                    font-size:30px;font-weight:800;line-height:1;
+                    color:${homeLeading ? homeColor : 'rgba(255,255,255,0.9)'};
+                    min-width:22px;text-align:right;
+                  ">${homeScore}</div>
+                </div>
+              </div>
+
+              <div style="
+                min-width:88px;
+                padding:8px 10px;
+                border-radius:16px;
+                background:rgba(255,255,255,0.04);
+                border:1px solid rgba(255,255,255,0.06);
+                display:flex;
+                flex-direction:column;
+                gap:8px;
+                align-items:center;
+                justify-content:center;
+              ">
+                ${
+                  live
+                    ? `
+                      ${bases(sit)}
+                      ${outsDots(sit.outs)}
+                      <div style="font-size:11px;color:rgba(255,255,255,0.65);">${comp?.outsText || ''}</div>
+                    `
+                    : `
+                      <div style="font-size:11px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:.08em;">Venue</div>
+                      <div style="font-size:11px;color:#fff;text-align:center;line-height:1.25;">
+                        ${comp?.venue?.fullName || ''}
+                      </div>
+                    `
+                }
+              </div>
+            </div>
+
+            <div style="
+              margin-top:12px;
+              padding:10px 10px;
+              border-radius:18px;
+              background:linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.025));
+              border:1px solid rgba(255,255,255,0.06);
+              box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+            ">
+              <div style="
+                display:grid;
+                grid-template-columns: 72px repeat(9, minmax(0, 1fr)) 28px 28px 28px;
+                gap:4px;
+                align-items:center;
+                width:100%;
+              ">
+                <div></div>
+                ${[1,2,3,4,5,6,7,8,9].map(i => `
+                  <div style="
+                    text-align:center;
+                    font-size:10px;
+                    font-weight:600;
+                    color:rgba(255,255,255,0.42);
+                    line-height:1;
+                  ">${i}</div>
+                `).join('')}
+                <div style="text-align:center;font-size:10px;font-weight:800;color:rgba(255,255,255,0.65);line-height:1;">R</div>
+                <div style="text-align:center;font-size:10px;font-weight:800;color:rgba(255,255,255,0.65);line-height:1;">H</div>
+                <div style="text-align:center;font-size:10px;font-weight:800;color:rgba(255,255,255,0.65);line-height:1;">E</div>
+
+                <div style="
+                  display:flex;
+                  align-items:center;
+                  gap:6px;
+                  min-width:0;
+                  padding:4px 2px;
+                ">
+                  <img src="${awayLogo}" style="width:18px;height:18px;object-fit:contain;flex:0 0 auto;">
+                  <span style="
+                    font-size:12px;
+                    font-weight:800;
+                    color:${awayLeading ? '#ffffff' : 'rgba(255,255,255,0.9)'};
+                    letter-spacing:.01em;
+                    white-space:nowrap;
+                  ">${awayAbbr}</span>
+                </div>
+                ${awayInnings.map(v => lsCell(v)).join('')}
+                ${lsCell(awayScore, true)}
+                ${lsCell(awayHits, true)}
+                ${lsCell(awayErr, true)}
+
+                <div style="
+                  display:flex;
+                  align-items:center;
+                  gap:6px;
+                  min-width:0;
+                  padding:4px 2px;
+                ">
+                  <img src="${homeLogo}" style="width:18px;height:18px;object-fit:contain;flex:0 0 auto;">
+                  <span style="
+                    font-size:12px;
+                    font-weight:800;
+                    color:${homeLeading ? '#ffffff' : 'rgba(255,255,255,0.9)'};
+                    letter-spacing:.01em;
+                    white-space:nowrap;
+                  ">${homeAbbr}</span>
+                </div>
+                ${homeInnings.map(v => lsCell(v)).join('')}
+                ${lsCell(homeScore, true)}
+                ${lsCell(homeHits, true)}
+                ${lsCell(homeErr, true)}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div style="width:100%;color:#fff;">
+          <div style="
+            padding:16px 18px 14px 18px;
+            background:linear-gradient(90deg, rgba(8,18,36,0.98), rgba(18,34,58,0.94));
+            border-bottom:1px solid rgba(255,255,255,0.06);
+          ">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div style="
+                  width:42px;height:42px;border-radius:14px;
+                  display:flex;align-items:center;justify-content:center;
+                  background:linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.04));
+                  border:1px solid rgba(255,255,255,0.08);
+                  font-size:22px;
+                ">⚾</div>
+                <div>
+                  <div style="font-size:12px;opacity:.62;letter-spacing:.14em;text-transform:uppercase;">Spring Training</div>
+                  <div style="font-size:22px;font-weight:800;line-height:1.1;">MLB Scoreboard</div>
+                </div>
+              </div>
+
+              <div style="
+                padding:6px 10px;border-radius:999px;
+                background:rgba(255,255,255,0.06);
+                border:1px solid rgba(255,255,255,0.08);
+                font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+              ">
+                ${events.length} Games
+              </div>
+            </div>
+          </div>
+
+          <div>
+            ${rows}
+          </div>
+        </div>
+      `;
+    ]]]
+
+
+```
+</details>
+
+4) Soccer scoreboard quick card (button-card)
+```yaml
+type: custom:button-card
+name: Soccer
+icon: mdi:soccer
+show_state: true
+entity: sensor.espn_mls_scoreboard_raw
+tap_action:
+  action: more-info
+```
+5) Standings card starter (Entities + markdown)
+> This is a simple “starter” pattern. Use it to prototype before building a full custom card.
+```yaml
+type: markdown
+content: >
+  **MLB Standings (example)**
+
+  {{ states('sensor.espn_mlb_standings') }}
+
+  _Tip: build a prettier table with a template card once you like the data._
+```
+6) Game / team stats card starter
+```yaml
+type: entities
+title: Game / Team Stats (example)
+entities:
+  - entity: sensor.espn_mlb_scoreboard_raw
+    name: Raw scoreboard
+  - entity: sensor.espn_mlb_next_game
+    name: Next game
+```
+🛠️ Troubleshooting
+“No games found” but you know games exist
+Check the league is enabled in the integration options
+Confirm the sensor has updated recently
+Open the raw sensor in Developer Tools → States and verify `attributes.events` exists
+`ButtonCardJSTemplateError: Identifier 'html' has already been declared`
 If you copy/paste multiple button-card templates, avoid re-declaring `const html = ...` in the same scope.  
 Use unique variable names or inline returns.
-
-### Preseason vs regular season
+Preseason vs regular season
 Some leagues use a `season.type` value in the payload. If your cards need preseason,
 read from the event’s `season.type` / `season.slug` and prefer the latest event where appropriate.
-
 ---
-
-## 🗺️ Roadmap
-
-- [ ] More derived sensors (standings, team stats, leaderboards)
-- [ ] Built-in “ticker” card templates
-- [ ] Better caching & rate limiting
-- [ ] League expansion
-
----
-
-
-## 🧾 Credits
-
-- Data powered by public sports endpoints used by ESPN-style scoreboards
-- Home Assistant community for the ecosystem & inspiration
-
+🗺️ Roadmap
+✅ Add Soccer (MLS / EPL / LaLiga / UEFA)
+⏳ Standings sensor polish + more league coverage
+⏳ “Stats” sensors (team + game-level) and richer example cards
+⏳ Optional: caching / throttling controls for heavy dashboards
+⏳ UI helper card (drop-in Lovelace ticker card)
+> Have an idea? Open an issue or a discussion with your use-case and league(s).
+🧾 Credits
+Data powered by public sports endpoints used by ESPN-style scoreboards
+Home Assistant community for the ecosystem & inspiration
 ---
