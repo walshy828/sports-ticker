@@ -13,7 +13,7 @@ Build clean, fast, “TV ticker” cards in Lovelace with `button-card`, `card-m
 
 ---
 
-## 📣 What’s new
+## 📣 What’s new (v0.0.15)
 
 - ⚽ **Soccer option added** (ESPN soccer scoreboards; great for MLS / EPL / LaLiga / UEFA comps)
 - 🧾 **Standings + stats examples** added to the README (starter templates)
