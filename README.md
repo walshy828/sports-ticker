@@ -9,7 +9,7 @@
 
 ---
 
-## 📣 What's new (v0.2.0)
+## 📣 What's new (v0.0.15)
 
 - ⚽ **Soccer support added** (MLS, Premier League, LaLiga, UEFA competitions — via ESPN soccer scoreboards)
 - 🧾 **Standings-friendly attributes** (cleaner fields and examples for building standings cards)
