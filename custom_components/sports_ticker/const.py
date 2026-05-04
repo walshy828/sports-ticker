@@ -25,7 +25,16 @@ LEAGUES = {
     "wnba": "https://site.api.espn.com/apis/site/v2/sports/basketball/wnba/scoreboard",
     "cfb": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/scoreboard",
 
-    # ✅ NEW
+    # Golf / Racing
     "pga": "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard",
     "nascar": "https://site.api.espn.com/apis/site/v2/sports/racing/nascar-premier/scoreboard",
+
+    # Soccer
+    "mls": "https://site.api.espn.com/apis/site/v2/sports/soccer/usa.1/scoreboard",
+    "epl": "https://site.api.espn.com/apis/site/v2/sports/soccer/eng.1/scoreboard",
+    "laliga": "https://site.api.espn.com/apis/site/v2/sports/soccer/esp.1/scoreboard",
+    "bundesliga": "https://site.api.espn.com/apis/site/v2/sports/soccer/ger.1/scoreboard",
+    "seriea": "https://site.api.espn.com/apis/site/v2/sports/soccer/ita.1/scoreboard",
+    "ligue1": "https://site.api.espn.com/apis/site/v2/sports/soccer/fra.1/scoreboard",
+    "ucl": "https://site.api.espn.com/apis/site/v2/sports/soccer/uefa.champions/scoreboard",
 }
