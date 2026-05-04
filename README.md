@@ -1,132 +1,107 @@
 <!-- support_badges_start -->
-[![PayPal](https://img.shields.io/badge/PayPal-Support%20Me-00457C?logo=paypal&logoColor=white)](https://www.paypal.com/paypalme/KevinHughesPhoto)
+![PayPal](https://img.shields.io/badge/PayPal-Support%20Me-00457C?logo=paypal&logoColor=white)
 <!-- support_badges_end -->
 
-
-# 🏟️ Home Assistant Sports Ticker
-
+🏟️ Home Assistant Sports Ticker
 > A Home Assistant integration that pulls live sports data (scores, status, schedules, standings, and more) and exposes it as sensors — perfect for building ESPN-style dashboard cards and tickers in Lovelace.
-
+---
+📣 What's new (v0.2.0)
+⚽ Soccer support added (MLS, Premier League, LaLiga, UEFA competitions — via ESPN soccer scoreboards)
+🧾 Standings-friendly attributes (cleaner fields and examples for building standings cards)
+📊 Stats card example (starter Lovelace snippet for team/game stats)
+🧰 Docs cleanup + improved troubleshooting tips
+✨ What this integration does
+Live scoreboard sensors per league (JSON “raw” + derived summary sensors)
+Game day helpers (what’s on tonight / next game)
+Team-focused views (favorite team filters, opponent, record, etc.)
+Works great with:
+`custom:button-card`
+`card-mod`
+Mushroom cards / sections dashboards
+---
+📌 Quick Links
+📂 Category	📝 Description	🔗 Link
+🏠 Home	This README	You are here
+⚙️ Installation	HACS / manual setup	Jump
+🧠 Sensors	What entities you get	Jump
+🧩 Examples	Copy/paste cards	Jump
+🛠️ Troubleshooting	Common issues	Jump
 ---
 
-## ✨ What this integration does
-
-- **Live scoreboard sensors** per league (JSON “raw” + derived summary sensors)
-- **Game day helpers** (what’s on tonight / next game)
-- **Team-focused views** (favorite team filters, opponent, record, etc.)
-- Works great with:
-  - `custom:button-card`
-  - `card-mod`
-  - Mushroom cards / sections dashboards
-
----
-
-## 📌 Quick Links
-
-| 📂 Category | 📝 Description | 🔗 Link |
-| :--- | :--- | :---: |
-| **🏠 Home** | This README | **You are here** |
-| **⚙️ Installation** | HACS / manual setup | [Jump](#-installation) |
-| **🧠 Sensors** | What entities you get | [Jump](#-entities--sensors) |
-| **🧩 Examples** | Copy/paste cards | [Jump](#-lovelace-examples) |
-| **🛠️ Troubleshooting** | Common issues | [Jump](#-troubleshooting) |
-
----
-
-
-## ✅ Supported leagues
-
-This integration is designed around **ESPN-style** endpoints and supports multiple leagues.
-
+✅ Supported leagues
+This integration is designed around ESPN-style endpoints and supports multiple leagues.
 Common setups include:
-- **MLB**
-- **NFL**
-- **NBA**
-- **NHL**
-- **PGA Tour**
-- **NASCAR**
-
-> If your fork/build supports additional leagues, add them here.
-
+🇺🇸 Major leagues
+MLB
+NFL
+NBA
+NHL
+⛳️ / 🏁 Other sports
+PGA Tour
+NASCAR
+⚽ Soccer (Football)
+Soccer uses ESPN's `soccer` endpoints. Common leagues/events include:
+MLS (`usa.1`)
+Premier League (`eng.1`)
+LaLiga (`esp.1`)
+UEFA Champions League (`uefa.champions`)
+UEFA Europa League (`uefa.europa`)
+> Want more? Most ESPN soccer competitions work if you know the league code.
 ---
-
-## 📦 Installation
-
-### Option A — HACS (recommended)
-
-1. Open **HACS** → **Integrations**
-2. Click **⋮** → **Custom repositories**
-3. Add your repo URL, category **Integration**
-4. Install **Sports Ticker**
-5. Restart Home Assistant
-
-### Option B — Manual
-
-1. Copy the `custom_components/sports_ticker/` folder into:
-   - `config/custom_components/sports_ticker/`
-2. Restart Home Assistant
-3. Add the integration via **Settings → Devices & services → Add integration**
-
+📦 Installation
+Option A — HACS (recommended)
+Open HACS → Integrations
+Click ⋮ → Custom repositories
+Add your repo URL, category Integration
+Install Sports Ticker
+Restart Home Assistant
+Option B — Manual
+Copy the `custom_components/sports_ticker/` folder into:
+`config/custom_components/sports_ticker/`
+Restart Home Assistant
+Add the integration via Settings → Devices & services → Add integration
 ---
-
-## ⚙️ Configuration
-
+⚙️ Configuration
 After installing:
-
-1. Go to **Settings → Devices & services**
-2. Click **Add Integration**
-3. Search for **Sports Ticker**
-4. Choose:
-   - leagues you want enabled
-   - poll interval
-   - ticker speed/theme (if provided by your version)
-
+Go to Settings → Devices & services
+Click Add Integration
+Search for Sports Ticker
+Choose:
+leagues you want enabled
+poll interval
+ticker speed/theme (if provided by your version)
 ---
-
-## 🧠 Entities / Sensors
-
+🧠 Entities / Sensors
 > Names vary slightly depending on your config flow options.
 > Below is the typical pattern used by this integration.
-
-### Scoreboard “raw” sensors (JSON)
-
+Scoreboard “raw” sensors (JSON)
 These are the “source of truth” sensors used by Lovelace templates:
-
-- `sensor.espn_mlb_scoreboard_raw`
-- `sensor.espn_nfl_scoreboard_raw`
-- `sensor.espn_nba_scoreboard_raw`
-- `sensor.espn_nhl_scoreboard_raw`
-- `sensor.espn_pga_scoreboard_raw`
-- `sensor.espn_nascar_scoreboard_raw`
-
+`sensor.espn_mlb_scoreboard_raw`
+`sensor.espn_nfl_scoreboard_raw`
+`sensor.espn_nba_scoreboard_raw`
+`sensor.espn_nhl_scoreboard_raw`
+`sensor.espn_pga_scoreboard_raw`
+`sensor.espn_nascar_scoreboard_raw`
 They contain JSON attributes like:
-- events list (games)
-- status (pre / in / final)
-- competitors/teams
-- scores
-- time/period/inning
-- broadcast / venue (when available)
-
-### Helper / derived sensors (optional)
-
+events list (games)
+status (pre / in / final)
+competitors/teams
+scores
+time/period/inning
+broadcast / venue (when available)
+Helper / derived sensors (optional)
 Depending on your version, you may also see things like:
-- `sensor.sports_ticker_<league>_whats_on_tonight`
-- `sensor.sports_ticker_<league>_next_game`
-- `sensor.sports_ticker_<league>_standings_*`
-- `sensor.sports_ticker_<league>_team_stats_*`
-
+`sensor.sports_ticker_<league>_whats_on_tonight`
+`sensor.sports_ticker_<league>_next_game`
+`sensor.sports_ticker_<league>_standings_*`
+`sensor.sports_ticker_<league>_team_stats_*`
 > If you don’t see these, you can still build everything from the `*_raw` sensors.
-
 ---
-
-## 🧩 Lovelace examples
-
-### 1) ESPN-style Ticker card (button-card)
+🧩 Lovelace examples
+1) ESPN-style Ticker card (button-card)
 ![mlbticker](https://github.com/user-attachments/assets/5f63fdf8-9eaf-4400-a3b2-fd7f04b7ea17)
 
-
 <details>
-  
 ```yaml
   
 type: custom:button-card
@@ -440,14 +415,10 @@ card_mod:
     }
 ```
 </details>
-
-### 2) Whats on tonight guide
+2) Whats on tonight guide
 <img width="592" height="561" alt="image" src="https://github.com/user-attachments/assets/70082f86-3dc1-4a42-a6d6-d01cb126863f" />
 
-
-
 <details>
-  
 ```yaml
   
 type: custom:button-card
@@ -717,14 +688,10 @@ card_mod:
 
 ```
 </details>
-
-### 3)MLB Gamecast Card
+3)MLB Gamecast Card
 <img width="475" height="1227" alt="image" src="https://github.com/user-attachments/assets/56be2ed7-7f1e-4f3d-8794-a5ef4189ab4e" />
 
-
-
 <details>
-  
 ```yaml
   
 type: custom:button-card
@@ -1111,37 +1078,57 @@ custom_fields:
 ```
 </details>
 
+4) Soccer scoreboard quick card (button-card)
+```yaml
+type: custom:button-card
+name: Soccer
+icon: mdi:soccer
+show_state: true
+entity: sensor.espn_mls_scoreboard_raw
+tap_action:
+  action: more-info
+```
+5) Standings card starter (Entities + markdown)
+> This is a simple “starter” pattern. Use it to prototype before building a full custom card.
+```yaml
+type: markdown
+content: >
+  **MLB Standings (example)**
 
-## 🛠️ Troubleshooting
+  {{ states('sensor.espn_mlb_standings') }}
 
-### “No games found” but you know games exist
-- Check the league is enabled in the integration options
-- Confirm the sensor has updated recently
-- Open the raw sensor in **Developer Tools → States** and verify `attributes.events` exists
-
-### `ButtonCardJSTemplateError: Identifier 'html' has already been declared`
+  _Tip: build a prettier table with a template card once you like the data._
+```
+6) Game / team stats card starter
+```yaml
+type: entities
+title: Game / Team Stats (example)
+entities:
+  - entity: sensor.espn_mlb_scoreboard_raw
+    name: Raw scoreboard
+  - entity: sensor.espn_mlb_next_game
+    name: Next game
+```
+🛠️ Troubleshooting
+“No games found” but you know games exist
+Check the league is enabled in the integration options
+Confirm the sensor has updated recently
+Open the raw sensor in Developer Tools → States and verify `attributes.events` exists
+`ButtonCardJSTemplateError: Identifier 'html' has already been declared`
 If you copy/paste multiple button-card templates, avoid re-declaring `const html = ...` in the same scope.  
 Use unique variable names or inline returns.
-
-### Preseason vs regular season
+Preseason vs regular season
 Some leagues use a `season.type` value in the payload. If your cards need preseason,
 read from the event’s `season.type` / `season.slug` and prefer the latest event where appropriate.
-
 ---
-
-## 🗺️ Roadmap
-
-- [ ] More derived sensors (standings, team stats, leaderboards)
-- [ ] Built-in “ticker” card templates
-- [ ] Better caching & rate limiting
-- [ ] League expansion
-
----
-
-
-## 🧾 Credits
-
-- Data powered by public sports endpoints used by ESPN-style scoreboards
-- Home Assistant community for the ecosystem & inspiration
-
+🗺️ Roadmap
+✅ Add Soccer (MLS / EPL / LaLiga / UEFA)
+⏳ Standings sensor polish + more league coverage
+⏳ “Stats” sensors (team + game-level) and richer example cards
+⏳ Optional: caching / throttling controls for heavy dashboards
+⏳ UI helper card (drop-in Lovelace ticker card)
+> Have an idea? Open an issue or a discussion with your use-case and league(s).
+🧾 Credits
+Data powered by public sports endpoints used by ESPN-style scoreboards
+Home Assistant community for the ecosystem & inspiration
 ---
