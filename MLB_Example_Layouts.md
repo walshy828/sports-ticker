@@ -36,7 +36,7 @@ Use this page when you want a quick MLB dashboard section, a full gamecast-style
 | [1. ESPN-style MLB ticker](#1-espn-style-mlb-ticker) | A compact scrolling scoreboard | `sensor.espn_mlb_scoreboard_raw` |
 | [2. What’s on tonight](#2-whats-on-tonight-guide) | A clean schedule/game list | `sensor.espn_mlb_scoreboard_raw` |
 | [3. MLB Gamecast](#3-mlb-gamecast-card) | Full scoreboard with inning linescore | `sensor.espn_mlb_scoreboard_raw` |
-| [4. MLB standings starter](#4-mlb-standings-starter) | Basic standings text output | `sensor.espn_mlb_standings` |
+| [4. MLB old school poster](#4-mlb-old-school-poster) | Basic standings text output | `sensor.espn_mlb_standings` |
 | [5. Game/team stats starter](#5-game--team-stats-starter) | Raw entity and next-game quick view | `sensor.espn_mlb_scoreboard_raw` |
 
 ---
@@ -1054,21 +1054,411 @@ custom_fields:
 
 ---
 
-## 4. MLB standings starter
+## 4. MLB Old School Poster
 
-This is a simple starter pattern for testing whether your standings sensor is returning useful data before building a full custom standings card.
+A vintage baseball poster-style scoreboard designed to look like a classic printed game-day graphic. It highlights one matchup with oversized team abbreviations, team logos, big center scores, a 9-inning linescore, and win/loss result boxes when the game is final.
+This card is best used as a featured MLB card for your favorite team or the main game you want displayed on a dashboard. It reads from the MLB raw scoreboard sensor and automatically picks your favorite team when available.
+
+
+Set your favorite team here:
+
+```yaml
+variables:
+  favorite: ATL
+```
+
+<img  width="340" alt="image" src="https://github.com/user-attachments/assets/22a61506-a14b-4f44-bb3f-9fc2f93cc60d" />
+
 
 <details>
 <summary>Copy YAML</summary>
 
 ```yaml
-type: markdown
-content: >
-  **MLB Standings (example)**
+type: custom:button-card
+entity: sensor.espn_mlb_scoreboard_raw
+show_name: false
+show_icon: false
+show_state: false
+triggers_update:
+  - sensor.espn_mlb_scoreboard_raw
+variables:
+  src: sensor.espn_mlb_scoreboard_raw
+  favorite: ATL
+  max_games: 8
+styles:
+  card:
+    - padding: 0
+    - border-radius: 24px
+    - overflow: hidden
+    - background: linear-gradient(180deg, rgba(8,12,20,0.98), rgba(14,20,32,0.96))
+    - border: 1px solid rgba(255,255,255,0.08)
+    - box-shadow: 0 12px 30px rgba(0,0,0,0.35)
+  grid:
+    - grid-template-areas: "\"main\""
+    - grid-template-columns: 1fr
+    - grid-template-rows: 1fr
+  custom_fields:
+    main:
+      - width: 100%
+custom_fields:
+  main: |
+    [[[
+      const st = states[variables.src];
+      if (!st) return `<div style="padding:18px;color:#fff;">Entity not found: ${variables.src}</div>`;
 
-  {{ states('sensor.espn_mlb_standings') }}
+      const events = st.attributes?.events || [];
+      if (!events.length) {
+        return `
+          <div style="padding:18px 20px;color:#fff;">
+            <div style="font-size:13px;opacity:.7;letter-spacing:.12em;text-transform:uppercase;">MLB Scoreboard</div>
+            <div style="margin-top:8px;font-size:18px;font-weight:700;">No games found</div>
+          </div>
+        `;
+      }
 
-  _Tip: build a prettier table with a template card once you like the data._
+      const fav = (variables.favorite || '').toUpperCase();
+      const maxGames = Number(variables.max_games || 8);
+
+      const getComp = (ev) => ev?.competitions?.[0] || {};
+      const getStatus = (ev) => getComp(ev)?.status || ev?.status || {};
+      const getStatusType = (ev) => getStatus(ev)?.type || {};
+      const getDetail = (ev) => getStatusType(ev)?.shortDetail || getStatusType(ev)?.detail || 'Scheduled';
+      const getState = (ev) => getStatusType(ev)?.state || 'pre';
+
+      const teamBySide = (comp, side) =>
+        (comp?.competitors || []).find(t => t.homeAway === side) || null;
+
+      const statVal = (team, key) => {
+        const s = (team?.statistics || []).find(x => x.name === key || x.abbreviation === key);
+        return s?.displayValue ?? '0';
+      };
+
+      const bases = (sit) => {
+        if (!sit) return '';
+        const on1 = sit.onFirst;
+        const on2 = sit.onSecond;
+        const on3 = sit.onThird;
+
+        const baseStyle = (on) => `
+          width:11px;height:11px;transform:rotate(45deg);
+          border-radius:2px;
+          background:${on ? '#ffd54a' : 'rgba(255,255,255,0.14)'};
+          border:1px solid ${on ? 'rgba(255,213,74,.9)' : 'rgba(255,255,255,.15)'};
+          box-shadow:${on ? '0 0 8px rgba(255,213,74,.35)' : 'none'};
+        `;
+
+        return `
+          <div style="display:grid;grid-template-columns:12px 12px 12px;grid-template-rows:12px 12px 12px;gap:2px;justify-content:center;align-items:center;">
+            <div></div>
+            <div style="${baseStyle(on2)}"></div>
+            <div></div>
+            <div style="${baseStyle(on3)}"></div>
+            <div></div>
+            <div style="${baseStyle(on1)}"></div>
+            <div></div>
+            <div></div>
+            <div></div>
+          </div>
+        `;
+      };
+
+      const outsDots = (outs) => {
+        const n = Number(outs ?? 0);
+        return `
+          <div style="display:flex;gap:4px;align-items:center;">
+            ${[0,1,2].map(i => `
+              <span style="
+                width:7px;height:7px;border-radius:50%;
+                background:${i < n ? '#ff5d5d' : 'rgba(255,255,255,0.18)'};
+                box-shadow:${i < n ? '0 0 8px rgba(255,93,93,.35)' : 'none'};
+                display:inline-block;"></span>
+            `).join('')}
+          </div>
+        `;
+      };
+
+      const inningVals = (team) => {
+        const arr = new Array(9).fill('-');
+        (team?.linescores || []).forEach(ls => {
+          const idx = Number(ls.period) - 1;
+          if (idx >= 0 && idx < 9) arr[idx] = ls.displayValue ?? ls.value ?? '-';
+        });
+        return arr;
+      };
+
+      const sortGames = [...events].sort((a,b) => {
+        const aFav = JSON.stringify(a).includes(`"abbreviation":"${fav}"`) ? 1 : 0;
+        const bFav = JSON.stringify(b).includes(`"abbreviation":"${fav}"`) ? 1 : 0;
+        if (aFav !== bFav) return bFav - aFav;
+
+        const aState = getState(a);
+        const bState = getState(b);
+        const rank = { in: 0, pre: 1, post: 2 };
+        const ar = rank[aState] ?? 9;
+        const br = rank[bState] ?? 9;
+        if (ar !== br) return ar - br;
+
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+      }).slice(0, maxGames);
+
+      const rows = sortGames.map((ev) => {
+        const comp = getComp(ev);
+        const state = getState(ev);
+        const detail = getDetail(ev);
+        const sit = comp?.situation || {};
+        const away = teamBySide(comp, 'away');
+        const home = teamBySide(comp, 'home');
+
+        if (!away || !home) return '';
+
+        const awayAbbr = away.team?.abbreviation || 'AWY';
+        const homeAbbr = home.team?.abbreviation || 'HME';
+
+        const awayName = away.team?.shortDisplayName || away.team?.name || awayAbbr;
+        const homeName = home.team?.shortDisplayName || home.team?.name || homeAbbr;
+
+        const awayLogo = away.team?.logo || '';
+        const homeLogo = home.team?.logo || '';
+
+        const awayScore = away.score ?? '-';
+        const homeScore = home.score ?? '-';
+
+        const awayHits = statVal(away, 'hits');
+        const homeHits = statVal(home, 'hits');
+        const awayErr = statVal(away, 'errors');
+        const homeErr = statVal(home, 'errors');
+
+        const awayColor = away.team?.color ? `#${away.team.color}` : '#9fb3c8';
+        const homeColor = home.team?.color ? `#${home.team.color}` : '#9fb3c8';
+
+        const awayLeading = Number(awayScore) > Number(homeScore);
+        const homeLeading = Number(homeScore) > Number(awayScore);
+        const isFav = [awayAbbr, homeAbbr].includes(fav);
+
+        const awayInnings = inningVals(away);
+        const homeInnings = inningVals(home);
+
+        const live = state === 'in';
+        const scheduled = state === 'pre';
+
+        const badgeBg =
+          live ? 'linear-gradient(90deg,#00c853,#00e676)' :
+          scheduled ? 'linear-gradient(90deg,#31445f,#425a78)' :
+          'linear-gradient(90deg,#6b7280,#9ca3af)';
+
+        const badgeText = live ? detail : scheduled ? detail : 'Final';
+
+        const networks = (comp?.broadcasts || [])
+          .flatMap(b => b?.names || [])
+          .filter(Boolean)
+          .slice(0, 2)
+          .join(' • ');
+
+        const lsCell = (val, strong = false) => `
+          <div style="
+            text-align:center;
+            font-size:${strong ? '13px' : '11px'};
+            font-weight:${strong ? '800' : '600'};
+            color:${val === '-' ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,0.88)'};
+            line-height:1;
+          ">${val}</div>
+        `;
+
+        return `
+          <div style="
+            padding:14px 16px;
+            border-top:1px solid rgba(255,255,255,0.06);
+            background:${isFav ? 'linear-gradient(90deg, rgba(186,12,47,0.12), rgba(12,35,64,0.08))' : 'transparent'};
+          ">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+              <div style="
+                display:inline-flex;align-items:center;gap:8px;
+                font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+                color:#fff;padding:4px 10px;border-radius:999px;background:${badgeBg};
+                box-shadow:0 0 12px rgba(0,0,0,.18);
+              ">
+                ${live ? '<span style="width:7px;height:7px;border-radius:50%;background:#fff;display:inline-block;"></span>' : ''}
+                ${badgeText}
+              </div>
+
+              <div style="font-size:11px;color:rgba(255,255,255,0.65);text-transform:uppercase;letter-spacing:.08em;">
+                ${networks}
+              </div>
+            </div>
+
+            <div style="margin-top:12px;display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;">
+              <div style="display:flex;flex-direction:column;gap:10px;">
+                <div style="display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;">
+                  <img src="${awayLogo}" style="width:24px;height:24px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.25));">
+                  <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+                    <span style="font-size:15px;font-weight:700;color:${awayLeading ? '#ffffff' : 'rgba(255,255,255,0.88)'};">${awayAbbr}</span>
+                    <span style="font-size:12px;color:rgba(255,255,255,0.58);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${awayName}</span>
+                  </div>
+                  <div style="
+                    font-size:30px;font-weight:800;line-height:1;
+                    color:${awayLeading ? awayColor : 'rgba(255,255,255,0.9)'};
+                    min-width:22px;text-align:right;
+                  ">${awayScore}</div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;">
+                  <img src="${homeLogo}" style="width:24px;height:24px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.25));">
+                  <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+                    <span style="font-size:15px;font-weight:700;color:${homeLeading ? '#ffffff' : 'rgba(255,255,255,0.88)'};">${homeAbbr}</span>
+                    <span style="font-size:12px;color:rgba(255,255,255,0.58);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${homeName}</span>
+                  </div>
+                  <div style="
+                    font-size:30px;font-weight:800;line-height:1;
+                    color:${homeLeading ? homeColor : 'rgba(255,255,255,0.9)'};
+                    min-width:22px;text-align:right;
+                  ">${homeScore}</div>
+                </div>
+              </div>
+
+              <div style="
+                min-width:88px;
+                padding:8px 10px;
+                border-radius:16px;
+                background:rgba(255,255,255,0.04);
+                border:1px solid rgba(255,255,255,0.06);
+                display:flex;
+                flex-direction:column;
+                gap:8px;
+                align-items:center;
+                justify-content:center;
+              ">
+                ${
+                  live
+                    ? `
+                      ${bases(sit)}
+                      ${outsDots(sit.outs)}
+                      <div style="font-size:11px;color:rgba(255,255,255,0.65);">${comp?.outsText || ''}</div>
+                    `
+                    : `
+                      <div style="font-size:11px;color:rgba(255,255,255,0.55);text-transform:uppercase;letter-spacing:.08em;">Venue</div>
+                      <div style="font-size:11px;color:#fff;text-align:center;line-height:1.25;">
+                        ${comp?.venue?.fullName || ''}
+                      </div>
+                    `
+                }
+              </div>
+            </div>
+
+            <div style="
+              margin-top:12px;
+              padding:10px 10px;
+              border-radius:18px;
+              background:linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.025));
+              border:1px solid rgba(255,255,255,0.06);
+              box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+            ">
+              <div style="
+                display:grid;
+                grid-template-columns: 72px repeat(9, minmax(0, 1fr)) 28px 28px 28px;
+                gap:4px;
+                align-items:center;
+                width:100%;
+              ">
+                <div></div>
+                ${[1,2,3,4,5,6,7,8,9].map(i => `
+                  <div style="
+                    text-align:center;
+                    font-size:10px;
+                    font-weight:600;
+                    color:rgba(255,255,255,0.42);
+                    line-height:1;
+                  ">${i}</div>
+                `).join('')}
+                <div style="text-align:center;font-size:10px;font-weight:800;color:rgba(255,255,255,0.65);line-height:1;">R</div>
+                <div style="text-align:center;font-size:10px;font-weight:800;color:rgba(255,255,255,0.65);line-height:1;">H</div>
+                <div style="text-align:center;font-size:10px;font-weight:800;color:rgba(255,255,255,0.65);line-height:1;">E</div>
+
+                <div style="
+                  display:flex;
+                  align-items:center;
+                  gap:6px;
+                  min-width:0;
+                  padding:4px 2px;
+                ">
+                  <img src="${awayLogo}" style="width:18px;height:18px;object-fit:contain;flex:0 0 auto;">
+                  <span style="
+                    font-size:12px;
+                    font-weight:800;
+                    color:${awayLeading ? '#ffffff' : 'rgba(255,255,255,0.9)'};
+                    letter-spacing:.01em;
+                    white-space:nowrap;
+                  ">${awayAbbr}</span>
+                </div>
+                ${awayInnings.map(v => lsCell(v)).join('')}
+                ${lsCell(awayScore, true)}
+                ${lsCell(awayHits, true)}
+                ${lsCell(awayErr, true)}
+
+                <div style="
+                  display:flex;
+                  align-items:center;
+                  gap:6px;
+                  min-width:0;
+                  padding:4px 2px;
+                ">
+                  <img src="${homeLogo}" style="width:18px;height:18px;object-fit:contain;flex:0 0 auto;">
+                  <span style="
+                    font-size:12px;
+                    font-weight:800;
+                    color:${homeLeading ? '#ffffff' : 'rgba(255,255,255,0.9)'};
+                    letter-spacing:.01em;
+                    white-space:nowrap;
+                  ">${homeAbbr}</span>
+                </div>
+                ${homeInnings.map(v => lsCell(v)).join('')}
+                ${lsCell(homeScore, true)}
+                ${lsCell(homeHits, true)}
+                ${lsCell(homeErr, true)}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div style="width:100%;color:#fff;">
+          <div style="
+            padding:16px 18px 14px 18px;
+            background:linear-gradient(90deg, rgba(8,18,36,0.98), rgba(18,34,58,0.94));
+            border-bottom:1px solid rgba(255,255,255,0.06);
+          ">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <div style="
+                  width:42px;height:42px;border-radius:14px;
+                  display:flex;align-items:center;justify-content:center;
+                  background:linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.04));
+                  border:1px solid rgba(255,255,255,0.08);
+                  font-size:22px;
+                ">⚾</div>
+                <div>
+                  <div style="font-size:12px;opacity:.62;letter-spacing:.14em;text-transform:uppercase;">Spring Training</div>
+                  <div style="font-size:22px;font-weight:800;line-height:1.1;">MLB Scoreboard</div>
+                </div>
+              </div>
+
+              <div style="
+                padding:6px 10px;border-radius:999px;
+                background:rgba(255,255,255,0.06);
+                border:1px solid rgba(255,255,255,0.08);
+                font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+              ">
+                ${events.length} Games
+              </div>
+            </div>
+          </div>
+
+          <div>
+            ${rows}
+          </div>
+        </div>
+      `;
+    ]]]
 ```
 
 </details>
