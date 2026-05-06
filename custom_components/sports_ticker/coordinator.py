@@ -80,10 +80,10 @@ MLB_PLAYER_LEADER_CATEGORIES: list[dict[str, str]] = [
     {
         "key": "strikeouts",
         "label": "Strikeouts",
-        "abbreviation": "K",
+        "abbreviation": "SO",
         "category": "pitching",
         "sort": "pitching.strikeouts:desc",
-        "stat_keys": "K,SO,strikeouts",
+        "stat_keys": "SO,strikeouts",
     },
     {
         "key": "saves",
