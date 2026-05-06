@@ -34,6 +34,8 @@ MLB_PLAYER_LEADERS_BASE_URL = (
 )
 MLB_PLAYER_LEADERS_LIMIT = 10
 
+# ESPN's statistics/byathlete endpoint is undocumented and some stat sort keys
+# can return HTTP 400. Keep this list limited to confirmed working categories.
 MLB_PLAYER_LEADER_CATEGORIES: list[dict[str, str]] = [
     {
         "key": "home_runs",
@@ -74,14 +76,6 @@ MLB_PLAYER_LEADER_CATEGORIES: list[dict[str, str]] = [
         "category": "pitching",
         "sort": "pitching.wins:desc",
         "stat_keys": "W,wins",
-    },
-    {
-        "key": "era",
-        "label": "ERA",
-        "abbreviation": "ERA",
-        "category": "pitching",
-        "sort": "pitching.earnedRunAverage:asc",
-        "stat_keys": "ERA,earnedRunAverage,earned run average",
     },
     {
         "key": "strikeouts",
@@ -196,7 +190,7 @@ class SportsTickerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             previous = self._last_good_data.get(MLB_PLAYER_LEADERS_KEY)
 
             try:
-                payload = await self._fetch_mlb_player_leaders()
+                payload = await self._fetch_mlb_player_leaders(previous)
                 now = dt_util.utcnow().isoformat()
 
                 payload["_sports_ticker_meta"] = {
@@ -257,36 +251,83 @@ class SportsTickerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         return payload
 
-    async def _fetch_mlb_player_leaders(self) -> dict[str, Any]:
+    async def _fetch_mlb_player_leaders(
+        self,
+        previous: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         """Fetch MLB player leader categories from ESPN."""
+        previous_categories = {}
+        if isinstance(previous, dict) and isinstance(previous.get("categories"), dict):
+            previous_categories = previous.get("categories", {})
+
         categories: dict[str, Any] = {}
+        errors: dict[str, str] = {}
 
         for category in MLB_PLAYER_LEADER_CATEGORIES:
+            key = category["key"]
             url = self._build_mlb_player_leaders_url(
                 category=category["category"],
                 sort=category["sort"],
             )
 
-            payload = await self._fetch_json(url)
-            leaders = self._extract_player_leaders(
-                payload,
-                category["stat_keys"].split(","),
-                MLB_PLAYER_LEADERS_LIMIT,
-            )
+            try:
+                payload = await self._fetch_json(url)
+                leaders = self._extract_player_leaders(
+                    payload,
+                    category["stat_keys"].split(","),
+                    MLB_PLAYER_LEADERS_LIMIT,
+                )
 
-            categories[category["key"]] = {
-                "label": category["label"],
-                "abbreviation": category["abbreviation"],
-                "category": category["category"],
-                "sort": category["sort"],
-                "leaders": leaders,
-            }
+                categories[key] = {
+                    "label": category["label"],
+                    "abbreviation": category["abbreviation"],
+                    "category": category["category"],
+                    "sort": category["sort"],
+                    "leaders": leaders,
+                    "stale": False,
+                    "error": None,
+                }
+
+            except Exception as err:
+                _LOGGER.warning(
+                    "Failed to update MLB player leader category %s. Error: %s",
+                    key,
+                    err,
+                )
+                errors[key] = str(err)
+
+                if key in previous_categories:
+                    cached_category = dict(previous_categories[key])
+                    cached_category["stale"] = True
+                    cached_category["error"] = str(err)
+                    categories[key] = cached_category
+                else:
+                    categories[key] = {
+                        "label": category["label"],
+                        "abbreviation": category["abbreviation"],
+                        "category": category["category"],
+                        "sort": category["sort"],
+                        "leaders": [],
+                        "stale": True,
+                        "error": str(err),
+                    }
+
+        successful_categories = [
+            key
+            for key, category in categories.items()
+            if not category.get("stale") and category.get("leaders")
+        ]
+
+        if not successful_categories and not categories:
+            raise ValueError("No MLB player leader categories were returned")
 
         return {
             "league": "mlb",
             "data_type": "player_leaders",
             "limit": MLB_PLAYER_LEADERS_LIMIT,
             "categories": categories,
+            "successful_categories": successful_categories,
+            "category_errors": errors,
         }
 
     @staticmethod
