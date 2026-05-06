@@ -273,9 +273,10 @@ class SportsTickerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             try:
                 payload = await self._fetch_json(url)
                 leaders = self._extract_player_leaders(
-                    payload,
-                    category["stat_keys"].split(","),
-                    MLB_PLAYER_LEADERS_LIMIT,
+                    payload=payload,
+                    stat_keys=category["stat_keys"].split(","),
+                    limit=MLB_PLAYER_LEADERS_LIMIT,
+                    sort=category["sort"],
                 )
 
                 categories[key] = {
@@ -350,12 +351,16 @@ class SportsTickerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         payload: dict[str, Any],
         stat_keys: list[str],
         limit: int,
+        sort: str | None = None,
     ) -> list[dict[str, Any]]:
         """Extract compact player leaders from ESPN statistics payload."""
         athletes = payload.get("athletes") or payload.get("items") or []
 
         if not isinstance(athletes, list):
             return []
+
+        stat_location = SportsTickerCoordinator._find_stat_location(payload, stat_keys, sort)
+        flattened_index = SportsTickerCoordinator._find_flat_stat_index(payload, stat_keys, sort)
 
         leaders: list[dict[str, Any]] = []
 
@@ -367,11 +372,13 @@ class SportsTickerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if not isinstance(athlete, dict):
                 athlete = {}
 
-            team = item.get("team") or athlete.get("team") or {}
-            if not isinstance(team, dict):
-                team = {}
-
-            value = SportsTickerCoordinator._find_stat_value(item, stat_keys)
+            team = SportsTickerCoordinator._extract_team(item, athlete)
+            value = SportsTickerCoordinator._find_stat_value(
+                item,
+                stat_keys,
+                stat_location=stat_location,
+                flattened_index=flattened_index,
+            )
 
             leaders.append(
                 {
@@ -381,8 +388,9 @@ class SportsTickerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     or athlete.get("fullName")
                     or athlete.get("name"),
                     "short_name": athlete.get("shortName"),
-                    "team": team.get("abbreviation") or team.get("shortDisplayName"),
-                    "team_name": team.get("displayName") or team.get("name"),
+                    "team": team.get("abbreviation"),
+                    "team_name": team.get("name"),
+                    "team_logo": team.get("logo"),
                     "value": value,
                     "headshot": SportsTickerCoordinator._extract_headshot(athlete),
                 }
@@ -391,8 +399,130 @@ class SportsTickerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return leaders
 
     @staticmethod
-    def _find_stat_value(data: Any, stat_keys: list[str]) -> Any:
-        """Find a display stat value inside a nested ESPN athlete stats object."""
+    def _target_keys(stat_keys: list[str], sort: str | None = None) -> set[str]:
+        """Return normalized stat target keys."""
+        targets = {
+            str(key).strip().lower().replace(" ", "")
+            for key in stat_keys
+            if str(key).strip()
+        }
+
+        if sort and "." in sort:
+            sort_key = sort.split(".", 1)[1].split(":", 1)[0]
+            targets.add(sort_key.strip().lower().replace(" ", ""))
+
+        return targets
+
+    @staticmethod
+    def _normalize(value: Any) -> str:
+        """Normalize label/key for matching."""
+        return str(value).strip().lower().replace(" ", "")
+
+    @staticmethod
+    def _find_stat_location(
+        payload: dict[str, Any],
+        stat_keys: list[str],
+        sort: str | None = None,
+    ) -> tuple[int, int] | None:
+        """Find nested category/stat index for ESPN statistics payload."""
+        targets = SportsTickerCoordinator._target_keys(stat_keys, sort)
+        categories = payload.get("categories")
+
+        if not isinstance(categories, list):
+            return None
+
+        label_fields = (
+            "labels",
+            "names",
+            "displayNames",
+            "descriptions",
+            "shortDisplayNames",
+        )
+
+        for category_index, category in enumerate(categories):
+            if not isinstance(category, dict):
+                continue
+
+            for field in label_fields:
+                labels = category.get(field)
+                if not isinstance(labels, list):
+                    continue
+
+                for stat_index, label in enumerate(labels):
+                    if SportsTickerCoordinator._normalize(label) in targets:
+                        return category_index, stat_index
+
+        return None
+
+    @staticmethod
+    def _find_flat_stat_index(
+        payload: dict[str, Any],
+        stat_keys: list[str],
+        sort: str | None = None,
+    ) -> int | None:
+        """Find flattened stat index for payloads with flat athlete stat arrays."""
+        targets = SportsTickerCoordinator._target_keys(stat_keys, sort)
+        categories = payload.get("categories")
+
+        if not isinstance(categories, list):
+            return None
+
+        index = 0
+        label_fields = (
+            "labels",
+            "names",
+            "displayNames",
+            "descriptions",
+            "shortDisplayNames",
+        )
+
+        for category in categories:
+            if not isinstance(category, dict):
+                continue
+
+            labels = None
+            for field in label_fields:
+                possible = category.get(field)
+                if isinstance(possible, list):
+                    labels = possible
+                    break
+
+            if not isinstance(labels, list):
+                continue
+
+            for label in labels:
+                if SportsTickerCoordinator._normalize(label) in targets:
+                    return index
+                index += 1
+
+        return None
+
+    @staticmethod
+    def _find_stat_value(
+        data: Any,
+        stat_keys: list[str],
+        stat_location: tuple[int, int] | None = None,
+        flattened_index: int | None = None,
+    ) -> Any:
+        """Find a display stat value inside an ESPN athlete stats object."""
+        if isinstance(data, dict):
+            if stat_location:
+                category_index, stat_index = stat_location
+                categories = data.get("categories")
+                if isinstance(categories, list) and category_index < len(categories):
+                    category = categories[category_index]
+                    if isinstance(category, dict):
+                        for field in ("totals", "values", "stats", "displayValues"):
+                            values = category.get(field)
+                            if isinstance(values, list) and stat_index < len(values):
+                                return values[stat_index]
+
+            if flattened_index is not None:
+                for field in ("stats", "totals", "values", "displayValues"):
+                    values = data.get(field)
+                    if isinstance(values, list) and flattened_index < len(values):
+                        return values[flattened_index]
+
         normalized_targets = {
             str(key).strip().lower().replace(" ", "")
             for key in stat_keys
@@ -437,6 +567,39 @@ class SportsTickerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return None
 
         return walk(data)
+
+    @staticmethod
+    def _extract_team(item: dict[str, Any], athlete: dict[str, Any]) -> dict[str, Any]:
+        """Extract team details from an ESPN athlete statistics row."""
+        team = item.get("team") or athlete.get("team") or athlete.get("teams")
+
+        if isinstance(team, list) and team:
+            team = team[0]
+
+        if not isinstance(team, dict):
+            team = {}
+
+        logo = None
+        logos = team.get("logos")
+        if isinstance(logos, list) and logos:
+            first_logo = logos[0]
+            if isinstance(first_logo, dict):
+                logo = first_logo.get("href") or first_logo.get("url")
+
+        if not logo:
+            logo = team.get("logo")
+
+        return {
+            "abbreviation": team.get("abbreviation")
+            or team.get("shortDisplayName")
+            or item.get("teamAbbreviation")
+            or item.get("teamShortName"),
+            "name": team.get("displayName")
+            or team.get("name")
+            or item.get("teamName")
+            or item.get("teamDisplayName"),
+            "logo": logo or item.get("teamLogo"),
+        }
 
     @staticmethod
     def _extract_headshot(athlete: dict[str, Any]) -> str | None:
