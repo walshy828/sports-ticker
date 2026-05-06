@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import timedelta
 from typing import Any
+from urllib.parse import urlencode
 
 import aiohttp
 import async_timeout
@@ -27,6 +28,78 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_LEAGUES = ["mlb", "nfl"]
+MLB_PLAYER_LEADERS_KEY = "mlb_player_leaders"
+MLB_PLAYER_LEADERS_BASE_URL = (
+    "https://site.web.api.espn.com/apis/common/v3/sports/baseball/mlb/statistics/byathlete"
+)
+MLB_PLAYER_LEADERS_LIMIT = 10
+
+MLB_PLAYER_LEADER_CATEGORIES: list[dict[str, str]] = [
+    {
+        "key": "home_runs",
+        "label": "Home Runs",
+        "abbreviation": "HR",
+        "category": "batting",
+        "sort": "batting.homeRuns:desc",
+        "stat_keys": "HR,homeRuns,home runs",
+    },
+    {
+        "key": "rbi",
+        "label": "RBI",
+        "abbreviation": "RBI",
+        "category": "batting",
+        "sort": "batting.RBIs:desc",
+        "stat_keys": "RBI,RBIs,runsBattedIn,runs batted in",
+    },
+    {
+        "key": "hits",
+        "label": "Hits",
+        "abbreviation": "H",
+        "category": "batting",
+        "sort": "batting.hits:desc",
+        "stat_keys": "H,hits",
+    },
+    {
+        "key": "stolen_bases",
+        "label": "Stolen Bases",
+        "abbreviation": "SB",
+        "category": "batting",
+        "sort": "batting.stolenBases:desc",
+        "stat_keys": "SB,stolenBases,stolen bases",
+    },
+    {
+        "key": "wins",
+        "label": "Wins",
+        "abbreviation": "W",
+        "category": "pitching",
+        "sort": "pitching.wins:desc",
+        "stat_keys": "W,wins",
+    },
+    {
+        "key": "era",
+        "label": "ERA",
+        "abbreviation": "ERA",
+        "category": "pitching",
+        "sort": "pitching.earnedRunAverage:asc",
+        "stat_keys": "ERA,earnedRunAverage,earned run average",
+    },
+    {
+        "key": "strikeouts",
+        "label": "Strikeouts",
+        "abbreviation": "K",
+        "category": "pitching",
+        "sort": "pitching.strikeouts:desc",
+        "stat_keys": "K,SO,strikeouts",
+    },
+    {
+        "key": "saves",
+        "label": "Saves",
+        "abbreviation": "SV",
+        "category": "pitching",
+        "sort": "pitching.saves:desc",
+        "stat_keys": "SV,saves",
+    },
+]
 
 
 class SportsTickerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -66,11 +139,12 @@ class SportsTickerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         stored = await self._store.async_load()
 
         if isinstance(stored, dict):
-            # Only keep cached data for currently selected leagues.
+            active_keys = self._active_cache_keys()
+
             self._last_good_data = {
-                league: payload
-                for league, payload in stored.items()
-                if league in self.leagues and isinstance(payload, dict)
+                key: payload
+                for key, payload in stored.items()
+                if key in active_keys and isinstance(payload, dict)
             }
 
             self.data = dict(self._last_good_data)
@@ -89,19 +163,7 @@ class SportsTickerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             previous = self._last_good_data.get(league)
 
             try:
-                async with async_timeout.timeout(15):
-                    response = await self.session.get(url)
-
-                    if response.status != 200:
-                        raise aiohttp.ClientResponseError(
-                            request_info=response.request_info,
-                            history=response.history,
-                            status=response.status,
-                            message=f"Unexpected status {response.status}",
-                            headers=response.headers,
-                        )
-
-                    payload = await response.json()
+                payload = await self._fetch_json(url)
 
                 if not self._is_valid_scoreboard_payload(payload):
                     raise ValueError(f"Invalid ESPN payload for {league}")
@@ -112,6 +174,7 @@ class SportsTickerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "stale": False,
                     "source": "espn",
                     "league": league,
+                    "data_type": "scoreboard",
                     "last_successful_update": now,
                     "last_attempted_update": now,
                     "last_error": None,
@@ -121,47 +184,48 @@ class SportsTickerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._last_good_data[league] = payload
 
             except Exception as err:
-                _LOGGER.warning(
-                    "Failed to update %s scoreboard. Keeping last good data. Error: %s",
-                    league,
-                    err,
+                results[league] = self._cached_or_empty_payload(
+                    key=league,
+                    previous=previous,
+                    err=err,
+                    empty_payload={"events": []},
+                    data_type="scoreboard",
                 )
 
+        if "mlb" in self.leagues:
+            previous = self._last_good_data.get(MLB_PLAYER_LEADERS_KEY)
+
+            try:
+                payload = await self._fetch_mlb_player_leaders()
                 now = dt_util.utcnow().isoformat()
 
-                if previous:
-                    cached_payload = dict(previous)
+                payload["_sports_ticker_meta"] = {
+                    "stale": False,
+                    "source": "espn",
+                    "league": "mlb",
+                    "data_type": "player_leaders",
+                    "last_successful_update": now,
+                    "last_attempted_update": now,
+                    "last_error": None,
+                }
 
-                    meta = dict(cached_payload.get("_sports_ticker_meta", {}))
-                    meta["stale"] = True
-                    meta["source"] = "cache"
-                    meta["league"] = league
-                    meta["last_attempted_update"] = now
-                    meta["last_error"] = str(err)
+                results[MLB_PLAYER_LEADERS_KEY] = payload
+                self._last_good_data[MLB_PLAYER_LEADERS_KEY] = payload
 
-                    cached_payload["_sports_ticker_meta"] = meta
+            except Exception as err:
+                results[MLB_PLAYER_LEADERS_KEY] = self._cached_or_empty_payload(
+                    key=MLB_PLAYER_LEADERS_KEY,
+                    previous=previous,
+                    err=err,
+                    empty_payload={"league": "mlb", "categories": {}},
+                    data_type="player_leaders",
+                )
 
-                    results[league] = cached_payload
-                    self._last_good_data[league] = cached_payload
-
-                else:
-                    results[league] = {
-                        "events": [],
-                        "_sports_ticker_meta": {
-                            "stale": True,
-                            "source": "cache",
-                            "league": league,
-                            "last_successful_update": None,
-                            "last_attempted_update": now,
-                            "last_error": str(err),
-                        },
-                    }
-
-        # Remove leagues that are no longer selected from memory before saving.
+        active_keys = self._active_cache_keys()
         self._last_good_data = {
-            league: payload
-            for league, payload in self._last_good_data.items()
-            if league in self.leagues
+            key: payload
+            for key, payload in self._last_good_data.items()
+            if key in active_keys
         }
 
         await self._store.async_save(self._last_good_data)
@@ -172,14 +236,241 @@ class SportsTickerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Shutdown coordinator."""
         await self._store.async_save(self._last_good_data)
 
+    async def _fetch_json(self, url: str) -> dict[str, Any]:
+        """Fetch JSON from ESPN."""
+        async with async_timeout.timeout(20):
+            response = await self.session.get(url)
+
+            if response.status != 200:
+                raise aiohttp.ClientResponseError(
+                    request_info=response.request_info,
+                    history=response.history,
+                    status=response.status,
+                    message=f"Unexpected status {response.status}",
+                    headers=response.headers,
+                )
+
+            payload = await response.json()
+
+        if not isinstance(payload, dict):
+            raise ValueError("ESPN response was not a JSON object")
+
+        return payload
+
+    async def _fetch_mlb_player_leaders(self) -> dict[str, Any]:
+        """Fetch MLB player leader categories from ESPN."""
+        categories: dict[str, Any] = {}
+
+        for category in MLB_PLAYER_LEADER_CATEGORIES:
+            url = self._build_mlb_player_leaders_url(
+                category=category["category"],
+                sort=category["sort"],
+            )
+
+            payload = await self._fetch_json(url)
+            leaders = self._extract_player_leaders(
+                payload,
+                category["stat_keys"].split(","),
+                MLB_PLAYER_LEADERS_LIMIT,
+            )
+
+            categories[category["key"]] = {
+                "label": category["label"],
+                "abbreviation": category["abbreviation"],
+                "category": category["category"],
+                "sort": category["sort"],
+                "leaders": leaders,
+            }
+
+        return {
+            "league": "mlb",
+            "data_type": "player_leaders",
+            "limit": MLB_PLAYER_LEADERS_LIMIT,
+            "categories": categories,
+        }
+
+    @staticmethod
+    def _build_mlb_player_leaders_url(category: str, sort: str) -> str:
+        """Build ESPN MLB statistics/byathlete URL."""
+        params = {
+            "region": "us",
+            "lang": "en",
+            "contentorigin": "espn",
+            "isqualified": "false",
+            "category": category,
+            "sort": sort,
+            "limit": str(MLB_PLAYER_LEADERS_LIMIT),
+        }
+
+        return f"{MLB_PLAYER_LEADERS_BASE_URL}?{urlencode(params)}"
+
+    @staticmethod
+    def _extract_player_leaders(
+        payload: dict[str, Any],
+        stat_keys: list[str],
+        limit: int,
+    ) -> list[dict[str, Any]]:
+        """Extract compact player leaders from ESPN statistics payload."""
+        athletes = payload.get("athletes") or payload.get("items") or []
+
+        if not isinstance(athletes, list):
+            return []
+
+        leaders: list[dict[str, Any]] = []
+
+        for index, item in enumerate(athletes[:limit], start=1):
+            if not isinstance(item, dict):
+                continue
+
+            athlete = item.get("athlete") or item.get("player") or item
+            if not isinstance(athlete, dict):
+                athlete = {}
+
+            team = item.get("team") or athlete.get("team") or {}
+            if not isinstance(team, dict):
+                team = {}
+
+            value = SportsTickerCoordinator._find_stat_value(item, stat_keys)
+
+            leaders.append(
+                {
+                    "rank": item.get("rank") or item.get("displayRank") or index,
+                    "athlete_id": athlete.get("id"),
+                    "name": athlete.get("displayName")
+                    or athlete.get("fullName")
+                    or athlete.get("name"),
+                    "short_name": athlete.get("shortName"),
+                    "team": team.get("abbreviation") or team.get("shortDisplayName"),
+                    "team_name": team.get("displayName") or team.get("name"),
+                    "value": value,
+                    "headshot": SportsTickerCoordinator._extract_headshot(athlete),
+                }
+            )
+
+        return leaders
+
+    @staticmethod
+    def _find_stat_value(data: Any, stat_keys: list[str]) -> Any:
+        """Find a display stat value inside a nested ESPN athlete stats object."""
+        normalized_targets = {
+            str(key).strip().lower().replace(" ", "")
+            for key in stat_keys
+            if str(key).strip()
+        }
+
+        def normalize(value: Any) -> str:
+            return str(value).strip().lower().replace(" ", "")
+
+        def walk(value: Any) -> Any:
+            if isinstance(value, dict):
+                name_candidates = [
+                    value.get("name"),
+                    value.get("abbreviation"),
+                    value.get("displayName"),
+                    value.get("shortDisplayName"),
+                    value.get("label"),
+                ]
+
+                if any(normalize(candidate) in normalized_targets for candidate in name_candidates if candidate):
+                    return (
+                        value.get("displayValue")
+                        or value.get("value")
+                        or value.get("display")
+                    )
+
+                for key, nested in value.items():
+                    if normalize(key) in normalized_targets and not isinstance(nested, (dict, list)):
+                        return nested
+
+                for nested in value.values():
+                    found = walk(nested)
+                    if found is not None:
+                        return found
+
+            elif isinstance(value, list):
+                for nested in value:
+                    found = walk(nested)
+                    if found is not None:
+                        return found
+
+            return None
+
+        return walk(data)
+
+    @staticmethod
+    def _extract_headshot(athlete: dict[str, Any]) -> str | None:
+        """Extract athlete headshot URL when ESPN provides one."""
+        headshot = athlete.get("headshot")
+
+        if isinstance(headshot, str):
+            return headshot
+
+        if isinstance(headshot, dict):
+            return headshot.get("href") or headshot.get("url")
+
+        headshots = athlete.get("headshots")
+        if isinstance(headshots, list) and headshots:
+            first = headshots[0]
+            if isinstance(first, dict):
+                return first.get("href") or first.get("url")
+
+        return None
+
+    def _cached_or_empty_payload(
+        self,
+        key: str,
+        previous: dict[str, Any] | None,
+        err: Exception,
+        empty_payload: dict[str, Any],
+        data_type: str,
+    ) -> dict[str, Any]:
+        """Return cached payload if available, otherwise an empty stale payload."""
+        _LOGGER.warning(
+            "Failed to update %s. Keeping last good data if available. Error: %s",
+            key,
+            err,
+        )
+
+        now = dt_util.utcnow().isoformat()
+
+        if previous:
+            cached_payload = dict(previous)
+            meta = dict(cached_payload.get("_sports_ticker_meta", {}))
+            meta["stale"] = True
+            meta["source"] = "cache"
+            meta["last_attempted_update"] = now
+            meta["last_error"] = str(err)
+            cached_payload["_sports_ticker_meta"] = meta
+            self._last_good_data[key] = cached_payload
+            return cached_payload
+
+        payload = dict(empty_payload)
+        payload["_sports_ticker_meta"] = {
+            "stale": True,
+            "source": "cache",
+            "league": "mlb" if key == MLB_PLAYER_LEADERS_KEY else key,
+            "data_type": data_type,
+            "last_successful_update": None,
+            "last_attempted_update": now,
+            "last_error": str(err),
+        }
+        return payload
+
+    def _active_cache_keys(self) -> set[str]:
+        """Return active cache keys for selected leagues and derived sensors."""
+        keys = set(self.leagues)
+
+        if "mlb" in self.leagues:
+            keys.add(MLB_PLAYER_LEADERS_KEY)
+
+        return keys
+
     @staticmethod
     def _is_valid_scoreboard_payload(payload: Any) -> bool:
         """Validate ESPN scoreboard payload."""
         if not isinstance(payload, dict):
             return False
 
-        # ESPN scoreboard payloads normally include events.
-        # Empty events is valid when there are no games.
         events = payload.get("events")
 
         return isinstance(events, list)
