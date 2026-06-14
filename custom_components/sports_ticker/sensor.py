@@ -124,8 +124,9 @@ class ESPNRawScoreboard(CoordinatorEntity[SportsTickerCoordinator], SensorEntity
         if not isinstance(favorite_teams, dict):
             favorite_teams = {}
 
-        favorite_team = favorite_teams.get(self.league)
-        favorite_team_name = self._favorite_team_name(favorite_team)
+        raw_favorite = favorite_teams.get(self.league)
+        favorite_team = self._coerce_favorite_teams(raw_favorite)
+        favorite_team_name = self._favorite_team_names(favorite_team)
 
         return {
             # League helpers
@@ -156,16 +157,22 @@ class ESPNRawScoreboard(CoordinatorEntity[SportsTickerCoordinator], SensorEntity
             "ticker_theme": str(opts.get(CONF_TICKER_THEME, DEFAULT_TICKER_THEME)),
         }
 
-    def _favorite_team_name(self, favorite_team: str | None) -> str | None:
-        """Return readable favorite team name from configured team abbreviation."""
-        if not favorite_team:
-            return None
+    @staticmethod
+    def _coerce_favorite_teams(raw: Any) -> list[str]:
+        """Coerce stored favorite team value to a list (handles legacy single-string format)."""
+        if isinstance(raw, list):
+            return [str(v) for v in raw if v]
+        if isinstance(raw, str) and raw:
+            return [raw]
+        return []
 
-        for team in TEAM_OPTIONS.get(self.league, []):
-            if team.get("value") == favorite_team:
-                return team.get("label")
-
-        return favorite_team
+    def _favorite_team_names(self, favorite_teams: list[str]) -> list[str]:
+        """Return readable team names for a list of team abbreviations."""
+        lookup = {
+            team["value"]: team["label"]
+            for team in TEAM_OPTIONS.get(self.league, [])
+        }
+        return [lookup.get(abbr, abbr) for abbr in favorite_teams]
 
 
 class ESPNMLBPlayerLeaders(CoordinatorEntity[SportsTickerCoordinator], SensorEntity):

@@ -40,22 +40,22 @@ def _league_options() -> list[selector.SelectOptionDict]:
 
 def _team_options(league: str) -> list[selector.SelectOptionDict]:
     """Return favorite team options for a league."""
-    options: list[selector.SelectOptionDict] = [
+    return [
         {
-            "value": "",
-            "label": "No favorite team",
+            "value": team["value"],
+            "label": team["label"],
         }
+        for team in TEAM_OPTIONS.get(league, [])
     ]
 
-    for team in TEAM_OPTIONS.get(league, []):
-        options.append(
-            {
-                "value": team["value"],
-                "label": team["label"],
-            }
-        )
 
-    return options
+def _coerce_favorite_teams(raw: Any) -> list[str]:
+    """Coerce stored favorite team value to a list (handles legacy single-string format)."""
+    if isinstance(raw, list):
+        return [str(v) for v in raw if v]
+    if isinstance(raw, str) and raw:
+        return [raw]
+    return []
 
 
 def _favorite_field(league: str) -> str:
@@ -192,13 +192,13 @@ class SportsTickerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> config_entries.ConfigFlowResult:
         """Step 2: choose favorite teams."""
         if user_input is not None:
-            favorite_teams: dict[str, str] = {}
+            favorite_teams: dict[str, list[str]] = {}
 
             for league in self._selected_leagues:
-                value = user_input.get(_favorite_field(league), "")
+                value = _coerce_favorite_teams(user_input.get(_favorite_field(league), []))
 
                 if value:
-                    favorite_teams[league] = str(value)
+                    favorite_teams[league] = value
 
             data = {
                 **self._basic_config,
@@ -216,15 +216,12 @@ class SportsTickerConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             schema_dict[
                 vol.Optional(
                     _favorite_field(league),
-                    default="",
-                    description={
-                        "suggested_value": "",
-                    },
+                    default=[],
                 )
             ] = selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=_team_options(league),
-                    multiple=False,
+                    multiple=True,
                     mode=selector.SelectSelectorMode.DROPDOWN,
                     translation_key=f"favorite_team_{league}",
                 )
@@ -403,13 +400,13 @@ class SportsTickerOptionsFlow(config_entries.OptionsFlow):
             current_favorites = {}
 
         if user_input is not None:
-            favorite_teams: dict[str, str] = {}
+            favorite_teams: dict[str, list[str]] = {}
 
             for league in self._selected_leagues:
-                value = user_input.get(_favorite_field(league), "")
+                value = _coerce_favorite_teams(user_input.get(_favorite_field(league), []))
 
                 if value:
-                    favorite_teams[league] = str(value)
+                    favorite_teams[league] = value
 
             return self.async_create_entry(
                 title="",
@@ -422,7 +419,7 @@ class SportsTickerOptionsFlow(config_entries.OptionsFlow):
         schema_dict: dict[Any, Any] = {}
 
         for league in self._selected_leagues:
-            current_value = current_favorites.get(league, "")
+            current_value = _coerce_favorite_teams(current_favorites.get(league, []))
 
             schema_dict[
                 vol.Optional(
@@ -432,7 +429,7 @@ class SportsTickerOptionsFlow(config_entries.OptionsFlow):
             ] = selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=_team_options(league),
-                    multiple=False,
+                    multiple=True,
                     mode=selector.SelectSelectorMode.DROPDOWN,
                     translation_key=f"favorite_team_{league}",
                 )
